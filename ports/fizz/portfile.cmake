@@ -1,14 +1,14 @@
-include(vcpkg_common_functions)
-
 vcpkg_check_linkage(ONLY_STATIC_LIBRARY)
 
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO facebookincubator/fizz
-    REF v2019.04.15.00
-    SHA512 41962aa2276fddf9076ed3070540ab4e5c3e5eed7617a777aef73826015743d02f6b167427242a37f21c7adc37d3f574a033577d4663ff7284e6eff4632ace45
+    REF b5c90de055e58e53b4137e0593f5bdbca172bcb2 # v2020.01.20.00
+    SHA512 1fdc8fd1d48671de30e4e67d260b13045dbc4436d2afa571bbb60e446d7d47cb68b9536dfef3621c0dd104abb7ec24647e0e0fad42b0134c5047772b7a9b2384
     HEAD_REF master
-    PATCHES find-zlib.patch
+    PATCHES
+        find-zlib.patch
+        fix-build_error.patch
 )
 
 # Prefer installed config files
@@ -28,7 +28,7 @@ vcpkg_configure_cmake(
 )
 
 vcpkg_install_cmake()
-vcpkg_fixup_cmake_targets(CONFIG_PATH "lib/cmake/fizz")
+vcpkg_fixup_cmake_targets(CONFIG_PATH lib/cmake/fizz)
 vcpkg_copy_pdbs()
 
 file(READ ${CURRENT_PACKAGES_DIR}/share/fizz/fizz-config.cmake _contents)
@@ -44,4 +44,4 @@ file(REMOVE_RECURSE
 )
 
 # Handle copyright
-file(INSTALL ${SOURCE_PATH}/LICENSE DESTINATION ${CURRENT_PACKAGES_DIR}/share/fizz RENAME copyright)
+file(INSTALL ${SOURCE_PATH}/LICENSE DESTINATION ${CURRENT_PACKAGES_DIR}/share/${PORT} RENAME copyright)

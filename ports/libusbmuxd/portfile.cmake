@@ -1,26 +1,23 @@
-include(vcpkg_common_functions)
-
-vcpkg_check_linkage(ONLY_STATIC_LIBRARY ONLY_DYNAMIC_CRT)
-
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO libimobiledevice-win32/libusbmuxd
-    REF 1.0.109
-    SHA512 104205ebcac96765f4bf0b42dbe5df084be4f87fc64454b4e02049fbd18caf9282d070f8949935977eda76fba68b6a909571afea58d4ad4091f02d0e6b7a08e0
+    REF b9643ca81b8274fbb2411d3c66c4edf103f6a711 # v1.2.137
+    SHA512 f4c9537349bfac2140c809be24cc573d92087a57f20d90e2abd46d0a2098e31ccd283ab776302b61470fb08d45f8dc2cfb8bd8678cba7db5b2a9b51c270a3cc8
     HEAD_REF msvc-master
-    PATCHES dllexport.patch
+    PATCHES fix-win-build.patch
 )
 
-set(ENV{_CL_} "$ENV{_CL_} /GL-")
-set(ENV{_LINK_} "$ENV{_LINK_} /LTCG:OFF")
+configure_file(${CURRENT_PORT_DIR}/CMakeLists.txt ${SOURCE_PATH}/CMakeLists.txt COPYONLY)
 
-vcpkg_install_msbuild(
+vcpkg_configure_cmake(
     SOURCE_PATH ${SOURCE_PATH}
-    PROJECT_SUBPATH libusbmuxd.sln
-    INCLUDES_SUBPATH include
-    LICENSE_SUBPATH COPYING
-    USE_VCPKG_INTEGRATION
-    ALLOW_ROOT_INCLUDES
+    PREFER_NINJA
 )
 
-file(REMOVE "${CURRENT_PACKAGES_DIR}/include/Makefile.am")
+vcpkg_install_cmake()
+vcpkg_copy_pdbs()
+
+file(REMOVE_RECURSE ${CURRENT_PACKAGES_DIR}/debug/include)
+
+# Handle copyright
+file(INSTALL ${SOURCE_PATH}/COPYING DESTINATION ${CURRENT_PACKAGES_DIR}/share/${PORT} RENAME copyright)

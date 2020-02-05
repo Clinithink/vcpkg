@@ -24,7 +24,7 @@ namespace vcpkg
             .push_back('\n');
     }
 
-    StatusParagraph::StatusParagraph(std::unordered_map<std::string, std::string>&& fields)
+    StatusParagraph::StatusParagraph(Parse::RawParagraph&& fields)
         : want(Want::ERROR_STATE), state(InstallState::ERROR_STATE)
     {
         auto status_it = fields.find(BinaryParagraphRequiredField::STATUS);
@@ -85,6 +85,34 @@ namespace vcpkg
             default: return "error";
         }
     }
+
+    std::unordered_map<std::string, std::vector<FeatureSpec>> InstalledPackageView::feature_dependencies() const
+    {
+        auto extract_deps = [&](const std::string& dep) {
+            FullPackageSpec dependency =
+                FullPackageSpec::from_string(dep, spec().triplet()).value_or_exit(VCPKG_LINE_INFO);
+            std::vector<FeatureSpec> fspecs;
+
+            for (std::string& feature : dependency.features)
+            {
+                fspecs.emplace_back(dependency.package_spec, std::move(feature));
+            }
+
+            return fspecs;
+        };
+
+        std::unordered_map<std::string, std::vector<FeatureSpec>> deps;
+
+        for (const StatusParagraph* const& feature : features)
+        {
+            deps.emplace(feature->package.feature, Util::fmap_flatten(feature->package.depends, extract_deps));
+        }
+
+        deps.emplace("core", Util::fmap_flatten(core->package.depends, extract_deps));
+
+        return deps;
+    }
+
     std::vector<PackageSpec> InstalledPackageView::dependencies() const
     {
         // accumulate all features in installed dependencies
