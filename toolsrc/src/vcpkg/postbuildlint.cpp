@@ -200,7 +200,7 @@ namespace vcpkg::PostBuildLint
             System::print2(System::Color::warning,
                            "Include files should not be duplicated into the /debug/include directory. If this cannot "
                            "be disabled in the project cmake, use\n"
-                           "    file(REMOVE_RECURSE ${CURRENT_PACKAGES_DIR}/debug/include)\n");
+                           "    file(REMOVE_RECURSE \"${CURRENT_PACKAGES_DIR}/debug/include\")\n");
             return LintStatus::ERROR_DETECTED;
         }
 
@@ -215,7 +215,7 @@ namespace vcpkg::PostBuildLint
         {
             System::print2(System::Color::warning,
                            "/debug/share should not exist. Please reorganize any important files, then use\n"
-                           "    file(REMOVE_RECURSE ${CURRENT_PACKAGES_DIR}/debug/share)\n");
+                           "    file(REMOVE_RECURSE \"${CURRENT_PACKAGES_DIR}/debug/share\")\n");
             return LintStatus::ERROR_DETECTED;
         }
 
@@ -349,11 +349,8 @@ namespace vcpkg::PostBuildLint
             const fs::path relative_path = found_file.string().erase(
                 0, current_buildtrees_dir.string().size() + 1); // The +1 is needed to remove the "/"
             System::printf(
-                "\n    file(COPY ${CURRENT_BUILDTREES_DIR}/%s DESTINATION ${CURRENT_PACKAGES_DIR}/share/%s)\n"
-                "    file(RENAME ${CURRENT_PACKAGES_DIR}/share/%s/%s ${CURRENT_PACKAGES_DIR}/share/%s/copyright)\n",
+                "\n    configure_file(\"${CURRENT_BUILDTREES_DIR}/%s/%s\" \"${CURRENT_PACKAGES_DIR}/share/%s/copyright\" COPYONLY)\n",
                 relative_path.generic_string(),
-                spec.name(),
-                spec.name(),
                 found_file.filename().generic_string(),
                 spec.name());
         }
@@ -662,7 +659,7 @@ namespace vcpkg::PostBuildLint
             "\n"
             R"###(    if(VCPKG_LIBRARY_LINKAGE STREQUAL "static"))###"
             "\n"
-            R"###(        file(REMOVE_RECURSE ${CURRENT_PACKAGES_DIR}/bin ${CURRENT_PACKAGES_DIR}/debug/bin))###"
+            R"###(        file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/bin" "${CURRENT_PACKAGES_DIR}/debug/bin"))###"
             "\n"
             R"###(    endif())###"
             "\n\n");
@@ -689,7 +686,7 @@ namespace vcpkg::PostBuildLint
                 "If the directories are not needed and their creation cannot be disabled, use something like this in "
                 "the portfile to remove them:\n"
                 "\n"
-                R"###(    file(REMOVE_RECURSE ${CURRENT_PACKAGES_DIR}/a/dir ${CURRENT_PACKAGES_DIR}/some/other/dir))###"
+                R"###(    file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/a/dir" "${CURRENT_PACKAGES_DIR}/some/other/dir"))###"
                 "\n"
                 "\n"
                 "\n");
@@ -741,7 +738,7 @@ namespace vcpkg::PostBuildLint
             System::printf(System::Color::warning,
                            "Expected %s crt linkage, but the following libs had invalid crt linkage:\n\n",
                            expected_build_type.to_string());
-            for (const BuildTypeAndFile btf : libs_with_invalid_crt)
+            for (const BuildTypeAndFile& btf : libs_with_invalid_crt)
             {
                 System::printf("    %s: %s\n", btf.file.generic_string(), btf.build_type.to_string());
             }
@@ -789,7 +786,7 @@ namespace vcpkg::PostBuildLint
         if (!dlls_with_outdated_crt.empty())
         {
             System::print2(System::Color::warning, "Detected outdated dynamic CRT in the following files:\n\n");
-            for (const OutdatedDynamicCrtAndFile btf : dlls_with_outdated_crt)
+            for (const OutdatedDynamicCrtAndFile& btf : dlls_with_outdated_crt)
             {
                 System::print2("    ", btf.file.u8string(), ": ", btf.outdated_crt.name, "\n");
             }
@@ -874,11 +871,11 @@ namespace vcpkg::PostBuildLint
         if (!pre_build_info.build_type)
             error_count += check_matching_debug_and_release_binaries(debug_libs, release_libs);
 
+        if (!build_info.policies.is_enabled(BuildPolicy::SKIP_ARCHITECTURE_CHECK))
         {
             std::vector<fs::path> libs;
             libs.insert(libs.cend(), debug_libs.cbegin(), debug_libs.cend());
             libs.insert(libs.cend(), release_libs.cbegin(), release_libs.cend());
-
             error_count += check_lib_architecture(pre_build_info.target_architecture, libs);
         }
 
@@ -903,7 +900,7 @@ namespace vcpkg::PostBuildLint
                 dlls.insert(dlls.cend(), debug_dlls.cbegin(), debug_dlls.cend());
                 dlls.insert(dlls.cend(), release_dlls.cbegin(), release_dlls.cend());
 
-                if (!toolset.dumpbin.empty())
+                if (!toolset.dumpbin.empty() && !build_info.policies.is_enabled(BuildPolicy::SKIP_DUMPBIN_CHECKS))
                 {
                     error_count += check_exports_of_dlls(build_info.policies, dlls, toolset.dumpbin);
                     error_count += check_uwp_bit_of_dlls(pre_build_info.cmake_system_name, dlls, toolset.dumpbin);
@@ -924,7 +921,7 @@ namespace vcpkg::PostBuildLint
 
                 error_count += check_bin_folders_are_not_present_in_static_build(fs, package_dir);
 
-                if (!toolset.dumpbin.empty())
+                if (!toolset.dumpbin.empty() && !build_info.policies.is_enabled(BuildPolicy::SKIP_DUMPBIN_CHECKS))
                 {
                     if (!build_info.policies.is_enabled(BuildPolicy::ONLY_RELEASE_CRT))
                     {
